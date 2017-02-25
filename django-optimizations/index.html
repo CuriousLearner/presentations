@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Optimizing Django For Building High Performance Systems</title>
+    <meta name="description" content="Explains neat usage of Django ORM constructs to efficiently scale systems with ease">
+    <meta name="author" content="Sanyam Khurana">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+    <link rel="stylesheet" href="css/reveal.css">
+    <link rel="stylesheet" href="css/theme/mozilla.css" id="theme">
+    <!-- Code syntax highlighting -->
+    <link rel="stylesheet" href="lib/css/zenburn.css">
+    <!-- Printing and PDF exports -->
+    <script>
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = window.location.search.match(/print-pdf/gi) ? 'css/print/pdf.css' : 'css/print/paper.css';
+        document.getElementsByTagName('head')[0].appendChild(link);
+    </script>
+    <!--[if lt IE 9]>
+    <script src="lib/js/html5shiv.js"></script>
+    <![endif]-->
+</head>
+<body>
+    <div class="reveal">
+        <!-- Any section element inside of this container is displayed as a slide -->
+        <div class="slides">
+            <section>
+                <h1>Optimizing Django For Building High Performance Systems</h1>
+                <p>
+                    <small>
+                        Created by
+                            <a href="http://www.SanyamKhurana.com">Sanyam Khurana</a> |
+                            <a href="http://twitter.com/ErSanyamKhurana">@ErSanyamKhurana</a> |
+                            <a href="http://github.com/CuriousLearner">@CuriousLearner</a>
+                    </small>
+                </p>
+            </section>
+            <section id="fr1">
+                <h2>Who am I?</h2>
+                <p>
+                <ul>
+                    <li class="fragment">One of YOU! -- Part of the community</li>
+                    <li class="fragment">Mozilla Representative</li>
+                    <li class="fragment">Open Source Enthusiast</li>
+                    <li class="fragment">Goes by <a href="https://keybase.io/curiouslearner">"CuriousLearner"</a> all over the web</li>
+                </ul>
+                </p>
+            </section>
+            <section id="fr2">
+                <h2>Django</h2>
+                <section>
+                    <p>The web framework for perfectionists with deadlines.</p>
+                </section>
+                <section>
+                    <p>But perfection is often forgotten due to deadlines</p>
+                </section>
+            </section>
+            <section id="">
+                <h2>Database Access Optimizations</h2>
+                <p>Profiling your Applications
+                <section>
+                <ul>
+                    <li class="fragment">What queries you're doing and what they're costing you?</li>
+                </ul>
+                </section>
+                <section>
+                    <ul>
+                        <li class="fragment">Use django-debug toolbar</li>
+                        <li class="fragment">Use django-debug toolbar</li>
+                        <li class="fragment">Use django-debug toolbar</li>
+                        <li class="fragment">Alright, I've made my point!</li>
+                    </ul>
+                </section>
+                <section>
+                    <ul>
+                        <li class="fragment">Optimize the right layer to create a balance
+                            <ul>
+                                <li>Database processing</li>
+                                <li>Python processing</li>
+                            </ul>
+                        </li>
+                        <li class="fragment">Profile after every change - should be big enough benefit given the decrease in readability of code.</li>
+                    </ul>
+                </section>
+                </p>
+            </section>
+            <section>
+                <h2>Understanding Database level optimizations</h2>
+                <p>Two obvious things</p>
+                <ul>
+                    <li>Indexes using `Field.db_index` or `Meta.index_together`; speed up filter(), exclude(), order_by() etc.</li>
+                    <li>Appropriate usage of field types</li>
+                </ul>
+            </section>
+            <section>
+                <h2>Understanding Querysets</h2>
+                <p>
+                    <ul>
+                        <li>Querysets are `LAZY`</li>
+                        <li>Understand how they are held in memory &amp; when they are evaluated.</li>
+                    </ul>
+                </p>
+            </section>
+            <section>
+                <h2>Understanding cache attributes</h2>
+                <section>
+                    <ul>
+                        <li>In general, non-callable attributes will be cached
+                            <pre><code class="hljs" data-trim>student = Student.objects.get(id=1)
+student.first_name  # Accessing first_name by hitting the database
+student.first_name  # No more hitting the database, first_name is already cached.
+                            </code></pre>
+                           <!--  <pre><code class="hljs" data-trim>student.first_name</code></pre>
+                            <pre><code class="hljs" data-trim>student.first_name</code></pre> -->
+                        </li>
+                    </ul>
+                </section>
+                <section>
+                    <ul>
+                        <li>These would issue multiple calls to database
+                            <pre><code class="hljs" data-trim>student = Student.objects.get(id=1)
+student.teachers.all()  # Hits the database to get everything from teachers manager
+student.teachers.all()  # Hits the database again.
+                            </code></pre>
+                            <!-- <pre><code class="hljs" data-trim></code></pre>
+                            <pre><code class="hljs" data-trim></code></pre> -->
+                        </li>
+                    </ul>
+                </section>
+                <section>
+                    <ul>
+                        <li>Be aware of Django templates -- they don't use parantheses doesn't mean they cache the result</li>
+                        <li>For your own properties use `@cached_property` decorator</li>
+                    </ul>
+                </section>
+            </section>
+            <section>
+                <h2>Separate Database and Python processing</h2>
+                <p>
+                    <section>
+                        <ul>
+                            <li>Use filter() and exclude() extensively wherever you can.</li>
+                            <pre><code>User.objects.filter(date_joined__gt=somedate)</code></pre>
+                            <p>Form chains of filtered querysets till you get the queryset you want</p>
+                            <pre><code>User.objects.filter(date_joined__gt=somedate)</code></pre>
+
+                        </ul>
+                    </section>
+                    <section>
+                        <ul>
+                            <li>Use F expressions to filter on other fields within same database model</li>
+                            <pre><code>User.objects.all().update(credits=F('credits') + 1)</code></pre>
+                            It would also help you prevent race conditions in your database.
+                        </ul>
+                    </section>
+                    <section>
+                        <ul>
+                            <li>Use Q objects to form complex commands</li>
+                            <pre><code>User.objects.get(
+    Q(name__startswith='san'),
+    Q(joined_date=date(2017, 3, 18)) | Q(joined_date=date(2017, 3, 18))
+)</code></pre>
+Let's see what the corresponding SQL query would look like:
+<pre><code>SELECT * from registration_users WHERE name LIKE 'san%'
+    AND (joined_date = '2017-03-18' OR joined_date = '2017-03-18')</code></pre>
+                        </ul>
+                    </section>
+                    <section>
+                        <ul>
+                            <li>Use annotate to do aggregation in database</li>
+                            <!-- <pre><code></code></pre> -->
+                        </ul>
+                    </section>
+                    <section>
+                        <pre><code># All operations using querysets are fast
+# That is what all databases are good at.
+User.objects.count()
+
+users = User.objects.all()
+
+# Counting objects in Python
+# Slower as includes database call as well as python processing
+len(users)
+
+# Django template filter
+# Much slower because of Python processing
+# and template overheads
+{{ users | length }}</code></pre>
+                    </section>
+                    <section>
+                        <p>Need more Power?</p>
+                        <p>Use RawSQL</p>
+                        <p>Still need more power?</p>
+                        <p>Use raw SQL queries</p>
+                    </section>
+                </p>
+            </section>
+            <section>
+                <p>Avoid retreiving things that you don't need</p>
+                <section>
+                    <pre><code>select * from registration_user
+User.objects.all()</code></pre>
+                    <pre><code>select first_name from registration_user
+User.objects.all().values_list('first_name')
+User.objects.all().values('first_name')</code></pre>
+                </section>
+                <section>
+                    <img src="assets/img/django_values_value_list.png">
+                </section>
+            </section>
+            <section>
+                <h2>Use Django ORM magic with querysets</h2>
+                <section>
+                    <pre><code>len(User.objects.all())</code></pre>
+                    <pre><code>user = User.objects.filter(first_name__starts_with='s')
+if user:
+    # ... do something ...
+                    </code></pre>
+                </section>
+                <section><br>
+                    <pre><code>len(User.objects.all())
+# First loads all objects in memory and then do python processing</code></pre>
+                    <pre><code>User.objects.count()
+# Use database power to get count of objects</code></pre>
+                </section>
+                <section>
+                    <img src="assets/img/django_db_query.png" />
+                </section>
+                <section>
+                    <pre><code>user = User.objects.filter(first_name__starts_with='s')
+if user:
+    # ... do something ...
+                    </code></pre>
+                    Use exists() for checking if there are entries in database
+                    <pre><code>User.objects.exists()</code></pre>
+                </section>                
+            </section>
+            <section>
+                <h2>Use bulk create</h2>
+                <pre><code># Instead of hitting database various times like:
+User.objects.create(first_name='Sanyam')
+User.objects.create(first_name='Amit')
+...
+
+
+# Use bulk_create ( just 1 query )
+User.objects.bulk_create([
+    User(first_name='Sanyam'),
+    User(first_name='Amit'),
+])
+</code></pre>
+            </section>
+            <section>
+                <h2>Similarly...</h2>
+                <p>for ManyToManyFields</p>
+                <pre><code>sanyam = User.objects.get(first_name="sanyam")
+amit = User.objects.get(first_name="amit")
+
+# Instead of using
+PyDelhi.members.add(sanyam)
+PyDelhi.members.add(amit)
+
+# Add multiple at once
+PyDelhi.members.add(sanyam, amit)
+</pre></code>
+            </section>
+            <section>
+                <h2>Use foreign key values directly</h2>
+
+                <pre><code># Instead of 
+user.post.id
+# Use values directly like:
+user.post_id</code></pre>
+
+            </section>
+            <section>
+                <h2>Inspecting raw SQL queries shot behind the scenes by ORM</h2>
+                <img src="assets/img/django_db_raw_sql_queries.png" />
+            </section>
+            <section>
+                <h2>The famous n+1 access problem ;)</h2>
+                <p>Extensively use `select_related` and `prefetch_related` if you know what fields you might need.</p>
+                <p>From 101 queries to just 2 queries in a typical use case.</p>
+            </section>
+           <!--  <section>
+                <h2>Architecture you *should* consider having in your Django applications</h2>
+            </section> -->
+           <!--  <section>
+                <h2>Where to go from here?</h2>
+                <p>
+                <ul>
+                    <li>some reference</li>
+                </ul>
+                </p>
+            </section> -->
+            <section style="text-align: left;">
+                <h1>THE END</h1>
+                <h2>As always, profile first &amp; then optimize</h2>
+                <p>
+                    Questions?
+                <hr>
+                Shout out on Twitter: <a href="http://www.twitter.com/ErSanyamKhurana">@ErSanyamKhurana</a>
+                <hr>
+                Shoot a mail at: <a href="mailto:Sanyam@SanyamKhurana.com">Sanyam@SanyamKhurana.com</a>
+                </p>
+                <hr>
+                <p>My websites: <br><a href="http://www.SanyamKhurana.com">www.SanyamKhurana.com</a> | <a href="http://www.TheGeekyWay.com">www.TheGeekyWay.com</a></p>
+            </section>
+
+        </div>
+
+    </div>
+
+    <script src="lib/js/head.min.js"></script>
+    <script src="js/reveal.js"></script>
+
+    <script>
+
+        // Full list of configuration options available at:
+        // https://github.com/hakimel/reveal.js#configuration
+        Reveal.initialize({
+            controls: true,
+            progress: true,
+            history: true,
+            center: true,
+
+            transition: 'slide', // none/fade/slide/convex/concave/zoom
+
+            // Optional reveal.js plugins
+            dependencies: [
+                {
+                    src: 'lib/js/classList.js', condition: function () {
+                    return !document.body.classList;
+                }
+                },
+                {
+                    src: 'plugin/markdown/marked.js', condition: function () {
+                    return !!document.querySelector('[data-markdown]');
+                }
+                },
+                {
+                    src: 'plugin/markdown/markdown.js', condition: function () {
+                    return !!document.querySelector('[data-markdown]');
+                }
+                },
+                {
+                    src: 'plugin/highlight/highlight.js', async: true, callback: function () {
+                    hljs.initHighlightingOnLoad();
+                }
+                },
+                {src: 'plugin/zoom-js/zoom.js', async: true},
+                {src: 'plugin/notes/notes.js', async: true}
+            ]
+        });
+
+    </script>
+
+</body>
+</html>
