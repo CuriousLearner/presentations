@@ -60,6 +60,10 @@
                     <p>But perfection is often forgotten due to deadlines</p>
                 </section>
             </section>
+            <section>
+                <h2>Server not responding - 5XX</h2>
+                <img src="assets/img/unresponsive_server.gif" />
+            </section>
             <section id="">
                 <h2>Database Access Optimizations</h2>
                 <p>Profiling your Applications
@@ -115,8 +119,6 @@
 student.first_name  # Accessing first_name by hitting the database
 student.first_name  # No more hitting the database, first_name is already cached.
                             </code></pre>
-                           <!--  <pre><code class="hljs" data-trim>student.first_name</code></pre>
-                            <pre><code class="hljs" data-trim>student.first_name</code></pre> -->
                         </li>
                     </ul>
                 </section>
@@ -124,11 +126,9 @@ student.first_name  # No more hitting the database, first_name is already cached
                     <ul>
                         <li>These would issue multiple calls to database
                             <pre><code class="hljs" data-trim>student = Student.objects.get(id=1)
-student.teachers.all()  # Hits the database to get everything from teachers manager
-student.teachers.all()  # Hits the database again.
+student.objects.all()  # Hits the database to get everything from objects manager
+student.objects.all()  # Hits the database again.
                             </code></pre>
-                            <!-- <pre><code class="hljs" data-trim></code></pre>
-                            <pre><code class="hljs" data-trim></code></pre> -->
                         </li>
                     </ul>
                 </section>
@@ -145,9 +145,21 @@ student.teachers.all()  # Hits the database again.
                     <section>
                         <ul>
                             <li>Use filter() and exclude() extensively wherever you can.</li>
-                            <pre><code>User.objects.filter(date_joined__gt=somedate)</code></pre>
-                            <p>Form chains of filtered querysets till you get the queryset you want</p>
-                            <pre><code>User.objects.filter(date_joined__gt=somedate)</code></pre>
+                            <pre><code>from datetime import datetime, timedelta
+month_before = datetime.now() - timedelta(days=30)
+User.objects.filter(date_joined__gt=month_before)</code></pre>
+                        </ul>
+                    </section>
+                    <section>
+                        <ul>
+                            <li><p>Form chains of filtered querysets till you get the queryset you want</p></li>
+                            <pre><code>users = User.objects.filter(date_joined__gt=month_before)
+    .exclude(name__startswith="san")
+    .filter(user_type=User.CLIENT)
+
+# users in a queryset
+for user in users: # users would be only evaluated now
+    # ... do something ...</code></pre>
 
                         </ul>
                     </section>
@@ -172,16 +184,42 @@ Let's see what the corresponding SQL query would look like:
                     </section>
                     <section>
                         <ul>
-                            <li>Use annotate to do aggregation in database</li>
-                            <!-- <pre><code></code></pre> -->
+                            <li>Use annotate and aggregate to derive summaries in database</li>
+                            <li>annotate() ? aggregate() ?
+                            Isn't it one and the same thing?
+                            </li>
                         </ul>
+                    </section>
+                    <section>
+                        <ul>
+                            <li>Aggregate is a terminal clause</li>
+                            <pre><code>Book.objects.aggregate(average_price=Avg('price'))
+# {'average_price': 13.67}</code></pre>
+                            <li>Annotate to do further processing</li>
+
+                            <pre><code>Book.objects.annotate(num_authors=Count('authors')).filter(num_authors__gt=1)</code></pre>
+                        </ul>
+                    </section>
+                    <section>
+                        <pre><code>len(User.objects.all())  # What newbies do</code></pre>
+                        <pre><code>users = User.objects.filter(first_name__startswith='s')
+if users:  # Another mistake newbies make
+    # ... do something ...
+                        </code></pre>
+                    </section>
+                    <section>
+                        <pre><code>len(User.objects.all())  # Use User.objects.count()</code></pre>
+                        <pre><code>users = User.objects.filter(first_name__startswith='s')
+if users:  # Use exists()
+    # ... do something ...
+                        </code></pre>
                     </section>
                     <section>
                         <pre><code># All operations using querysets are fast
 # That is what all databases are good at.
-User.objects.count()
+User.objects.filter(first_name__startswith='s').count()
 
-users = User.objects.all()
+users = User.objects.filter(first_name__startswith='s')
 
 # Counting objects in Python
 # Slower as includes database call as well as python processing
@@ -191,6 +229,17 @@ len(users)
 # Much slower because of Python processing
 # and template overheads
 {{ users | length }}</code></pre>
+                    </section>
+                    <section>
+                        <img src="assets/img/django_db_query.png" />
+                    </section>
+                    <section>
+<pre><code>users = User.objects.filter(first_name__startswith='s')
+if users:
+    # ... do something ...
+</code></pre>
+                    Use exists() for checking if there are entries in database
+                    <pre><code>User.objects.exists()</code></pre>
                     </section>
                     <section>
                         <p>Need more Power?</p>
@@ -214,33 +263,6 @@ User.objects.all().values('first_name')</code></pre>
                 </section>
             </section>
             <section>
-                <h2>Use Django ORM magic with querysets</h2>
-                <section>
-                    <pre><code>len(User.objects.all())</code></pre>
-                    <pre><code>user = User.objects.filter(first_name__starts_with='s')
-if user:
-    # ... do something ...
-                    </code></pre>
-                </section>
-                <section><br>
-                    <pre><code>len(User.objects.all())
-# First loads all objects in memory and then do python processing</code></pre>
-                    <pre><code>User.objects.count()
-# Use database power to get count of objects</code></pre>
-                </section>
-                <section>
-                    <img src="assets/img/django_db_query.png" />
-                </section>
-                <section>
-                    <pre><code>user = User.objects.filter(first_name__starts_with='s')
-if user:
-    # ... do something ...
-                    </code></pre>
-                    Use exists() for checking if there are entries in database
-                    <pre><code>User.objects.exists()</code></pre>
-                </section>                
-            </section>
-            <section>
                 <h2>Use bulk create</h2>
                 <pre><code># Instead of hitting database various times like:
 User.objects.create(first_name='Sanyam')
@@ -250,8 +272,8 @@ User.objects.create(first_name='Amit')
 
 # Use bulk_create ( just 1 query )
 User.objects.bulk_create([
-    User(first_name='Sanyam'),
-    User(first_name='Amit'),
+User(first_name='Sanyam'),
+User(first_name='Amit'),
 ])
 </code></pre>
             </section>
@@ -271,33 +293,101 @@ PyDelhi.members.add(sanyam, amit)
             </section>
             <section>
                 <h2>Use foreign key values directly</h2>
-
                 <pre><code># Instead of 
 user.post.id
 # Use values directly like:
 user.post_id</code></pre>
-
             </section>
             <section>
                 <h2>Inspecting raw SQL queries shot behind the scenes by ORM</h2>
                 <img src="assets/img/django_db_raw_sql_queries.png" />
             </section>
             <section>
-                <h2>The famous n+1 access problem ;)</h2>
-                <p>Extensively use `select_related` and `prefetch_related` if you know what fields you might need.</p>
-                <p>From 101 queries to just 2 queries in a typical use case.</p>
+                <h2>The untold story of humungous tasks</h2>
+                <section>
+                    <p>Tasks which requires a lot of processing</p>
+                    <p>Processing them in the django request-response cycle would hurt your application really bad</p>
+                    <p>Example: Sending emails, SMS...</p>
+                    <p>Doing a lot of processing / aggregation</p>
+                </section>
+                <section>
+                    <p>Avoid those 5XX responses and start using task queues such as Celery</p>
+                    <p>They would help you to asynchronously process and update the results later</p>
+                    <p>Use RabbitMQ/Redis as broker and RESULT_BACKEND</p>
+                </section>
             </section>
-           <!--  <section>
-                <h2>Architecture you *should* consider having in your Django applications</h2>
-            </section> -->
-           <!--  <section>
+            <section>
+                <h2>Optimizing Templates</h2>
+                <section>
+                    <p>Cache particular portions</p>
+                    <p>Use Memcached cache</p>
+                    <pre><code>given a URL, try finding that page in the cache
+if the page is in the cache:
+    return the cached page
+else:
+    generate the page
+    save the generated page in the cache (for next time)
+    return the generated page</code></pre>
+                </section>
+                <section>
+                    <p>Template fragment caching</p>
+                    <pre><code>{% load cache %}
+{% cache 500 sidebar request.user.username %}
+    ... sidebar for particular user ...
+{% endcache %}</code></pre>
+                </section>
+                <section>
+                    <p>Use `cache_page` decorator</p>
+                    <pre><code>from django.views.decorators.cache import cache_page
+
+@cache_page(60 * 15)  # cache for 15 mins
+def my_view(request):
+    # ... some magic happens ...
+    # ... return Response ....</code></pre>
+                </section>
+            </section>
+            <section>
+                <h2>The famous n+1 access problem ;)</h2>
+                <section>What is it?</section>
+                <section>
+                    <p>Books having Author(s)</p>
+                    <p>One query to fetch N books, and then N queries to fetch author(s) for each book</p>
+                    <p>Total N+1 queries</p>
+                </section>
+                <section>
+                    <p>
+                        <pre><code>SELECT * FROM Books;
+SELECT * FROM Author WHERE book_id = ?;
+                        </code></pre>
+                    </p>
+                    <p>Why not simply do?<pre><code>SELECT * FROM Author;</code></pre>
+                    And then do in-memory processing
+                    </p>
+                </section>
+                <section>
+                    <p>Extensively use `select_related` (for OneToOneField or ForeignKey field) and `prefetch_related` (for ManyToManyField) if you know what fields you might need.</p>
+                    <pre><code>book = Book.objects.select_related('author').get(id=1)
+# Will not hit the database again since author was already pre-populated
+author = book.author</code></pre>
+                </section>
+                <section>
+                    <p>From 101 queries (in case of 100 books) to just 2 queries in a typical use case.</p>
+                </section>
+            </section>
+            <section>
+                <h3>Architecture you *should* consider having in your Django applications</h3>
+                <img src="assets/img/django_stack.png" height="50%" width="60%" alt="Image credits to Naren Arya from IMPYTHONIST" />
+                <small>Image credits to Naren Arya from IMPYTHONIST</small>
+            </section>
+            <section>
                 <h2>Where to go from here?</h2>
                 <p>
                 <ul>
-                    <li>some reference</li>
+                    <li><a href="https://docs.djangoproject.com/en/1.10/topics/">docs.djangoproject.com</a></li>
+                    <li><a href="https://impythonist.wordpress.com/2016/02/21/building-high-performance-django-systems/">Blog post on Django optmizations</a></li>
                 </ul>
                 </p>
-            </section> -->
+            </section>
             <section style="text-align: left;">
                 <h1>THE END</h1>
                 <h2>As always, profile first &amp; then optimize</h2>
